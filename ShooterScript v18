@@ -1,0 +1,399 @@
+--!strict
+
+--==================================================
+-- ADMIN ACCESS
+--==================================================
+
+local ALLOWED_USER = "Korol_Archi007"
+
+--==================================================
+-- SERVICES
+--==================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+local localPlayer = Players.LocalPlayer :: Player
+local playerGui = localPlayer:WaitForChild("PlayerGui") :: PlayerGui
+
+if localPlayer.Name ~= ALLOWED_USER then
+	return
+end
+
+--==================================================
+-- CONFIG & DARK-RED THEME
+--==================================================
+
+local CONFIG = {
+	MAIN_SIZE = UDim2.fromOffset(310, 230),
+	MAIN_POSITION = UDim2.fromScale(0.5, 0.45),
+
+	-- Dark Red Style
+	BG_COLOR = Color3.fromRGB(18, 10, 12),
+	CARD_BG = Color3.fromRGB(32, 18, 22),
+	ACCENT_COLOR = Color3.fromRGB(220, 38, 38),
+	TEXT_PRIMARY = Color3.fromRGB(255, 240, 240),
+	TEXT_SECONDARY = Color3.fromRGB(180, 130, 135),
+
+	ON_COLOR = Color3.fromRGB(34, 197, 94),
+	OFF_COLOR = Color3.fromRGB(150, 40, 40),
+
+	ESP_COLOR = Color3.fromRGB(255, 30, 30),
+	LINE_THICKNESS = 1.5,
+
+	MAX_DISTANCE = 10000, -- Максимальная дистанция для поиска
+}
+
+--==================================================
+-- GUI CREATION
+--==================================================
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SpectatorAdminSuite"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
+screenGui.DisplayOrder = 100
+screenGui.Parent = playerGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = CONFIG.MAIN_SIZE
+mainFrame.Position = CONFIG.MAIN_POSITION
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.BackgroundColor3 = CONFIG.BG_COLOR
+mainFrame.BackgroundTransparency = 0.15
+mainFrame.BorderSizePixel = 0
+mainFrame.ZIndex = 1
+mainFrame.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 14)
+corner.Parent = mainFrame
+
+local stroke = Instance.new("UIStroke")
+stroke.Thickness = 2
+stroke.Color = CONFIG.ACCENT_COLOR
+stroke.Transparency = 0.3
+stroke.Parent = mainFrame
+
+-- TITLE HEADER
+local header = Instance.new("Frame")
+header.Size = UDim2.new(1, 0, 0, 50)
+header.BackgroundTransparency = 1
+header.ZIndex = 2
+header.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(0.7, 0, 0.6, 0)
+title.Position = UDim2.new(0.06, 0, 0.15, 0)
+title.BackgroundTransparency = 1
+title.Font = Enum.Font.GothamBold
+title.Text = "SPECTATOR V2"
+title.TextColor3 = CONFIG.TEXT_PRIMARY
+title.TextSize = 16
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.ZIndex = 2
+title.Parent = header
+
+local subtitle = Instance.new("TextLabel")
+subtitle.Size = UDim2.new(0.7, 0, 0.3, 0)
+subtitle.Position = UDim2.new(0.06, 0, 0.65, 0)
+subtitle.BackgroundTransparency = 1
+subtitle.Font = Enum.Font.Gotham
+subtitle.Text = "Target Nearest Player Only"
+subtitle.TextColor3 = CONFIG.TEXT_SECONDARY
+subtitle.TextSize = 10
+subtitle.TextXAlignment = Enum.TextXAlignment.Left
+subtitle.ZIndex = 2
+subtitle.Parent = header
+
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.fromOffset(28, 28)
+minimizeBtn.Position = UDim2.new(1, -36, 0, 11)
+minimizeBtn.BackgroundColor3 = CONFIG.CARD_BG
+minimizeBtn.BorderSizePixel = 0
+minimizeBtn.Text = "—"
+minimizeBtn.TextColor3 = CONFIG.TEXT_PRIMARY
+minimizeBtn.TextSize = 12
+minimizeBtn.Font = Enum.Font.GothamBold
+minimizeBtn.ZIndex = 2
+minimizeBtn.Parent = header
+
+local minCorner = Instance.new("UICorner")
+minCorner.CornerRadius = UDim.new(0, 8)
+minCorner.Parent = minimizeBtn
+
+local openBtn = Instance.new("TextButton")
+openBtn.Size = UDim2.fromOffset(45, 45)
+openBtn.Position = UDim2.new(0, 15, 0.5, -22)
+openBtn.BackgroundColor3 = CONFIG.BG_COLOR
+openBtn.BorderSizePixel = 0
+openBtn.Text = "👁️"
+openBtn.TextSize = 20
+openBtn.Visible = false
+openBtn.ZIndex = 20
+openBtn.Parent = screenGui
+
+local openCorner = Instance.new("UICorner")
+openCorner.CornerRadius = UDim.new(0, 12)
+openCorner.Parent = openBtn
+
+local openStroke = Instance.new("UIStroke")
+openStroke.Thickness = 1.5
+openStroke.Color = CONFIG.ACCENT_COLOR
+openStroke.Parent = openBtn
+
+-- BUTTON CONTAINER
+local buttonList = Instance.new("Frame")
+buttonList.Size = UDim2.new(0.88, 0, 0.65, 0)
+buttonList.Position = UDim2.new(0.06, 0, 0.26, 0)
+buttonList.BackgroundTransparency = 1
+buttonList.ZIndex = 2
+buttonList.Parent = mainFrame
+
+local layout = Instance.new("UIListLayout")
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Padding = UDim.new(0, 10)
+layout.Parent = buttonList
+
+local function createToggle(text: string, order: number): (Frame, () -> boolean)
+	local card = Instance.new("Frame")
+	card.Size = UDim2.new(1, 0, 0, 46)
+	card.BackgroundColor3 = CONFIG.CARD_BG
+	card.BorderSizePixel = 0
+	card.LayoutOrder = order
+	card.ZIndex = 2
+	card.Parent = buttonList
+
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, 10)
+	c.Parent = card
+
+	local cardStroke = Instance.new("UIStroke")
+	cardStroke.Thickness = 1
+	cardStroke.Color = CONFIG.ACCENT_COLOR
+	cardStroke.Transparency = 0.7
+	cardStroke.Parent = card
+
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(0.65, 0, 1, 0)
+	lbl.Position = UDim2.new(0.05, 0, 0, 0)
+	lbl.BackgroundTransparency = 1
+	lbl.Font = Enum.Font.GothamBold
+	lbl.Text = text
+	lbl.TextColor3 = CONFIG.TEXT_PRIMARY
+	lbl.TextSize = 13
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.ZIndex = 3
+	lbl.Parent = card
+
+	local indicator = Instance.new("Frame")
+	indicator.Size = UDim2.fromOffset(36, 20)
+	indicator.Position = UDim2.new(1, -44, 0.5, -10)
+	indicator.BackgroundColor3 = CONFIG.OFF_COLOR
+	indicator.BorderSizePixel = 0
+	indicator.ZIndex = 3
+	indicator.Parent = card
+
+	local indCorner = Instance.new("UICorner")
+	indCorner.CornerRadius = UDim.new(1, 0)
+	indCorner.Parent = indicator
+
+	local dot = Instance.new("Frame")
+	dot.Size = UDim2.fromOffset(14, 14)
+	dot.Position = UDim2.new(0, 3, 0.5, -7)
+	dot.BackgroundColor3 = CONFIG.TEXT_PRIMARY
+	dot.BorderSizePixel = 0
+	dot.ZIndex = 4
+	dot.Parent = indicator
+
+	local dotCorner = Instance.new("UICorner")
+	dotCorner.CornerRadius = UDim.new(1, 0)
+	dotCorner.Parent = dot
+
+	local clickBtn = Instance.new("TextButton")
+	clickBtn.Size = UDim2.fromScale(1, 1)
+	clickBtn.BackgroundTransparency = 1
+	clickBtn.Text = ""
+	clickBtn.ZIndex = 5
+	clickBtn.Parent = card
+
+	local active = false
+	local function updateState()
+		if active then
+			indicator.BackgroundColor3 = CONFIG.ON_COLOR
+			dot.Position = UDim2.new(1, -17, 0.5, -7)
+		else
+			indicator.BackgroundColor3 = CONFIG.OFF_COLOR
+			dot.Position = UDim2.new(0, 3, 0.5, -7)
+		end
+	end
+
+	clickBtn.Activated:Connect(function()
+		active = not active
+		updateState()
+	end)
+
+	return card, function() return active end
+end
+
+local espCard, getEspState = createToggle("ESP HIGHLIGHT", 1)
+local aimCard, getAimState = createToggle("AIM ASSIST", 2)
+
+-- DRAGGING
+local dragging, dragStart, startPos, dragInput
+mainFrame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = mainFrame.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then dragging = false end
+		end)
+	end
+end)
+mainFrame.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
+end)
+UserInputService.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		local delta = input.Position - dragStart
+		mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
+end)
+
+minimizeBtn.Activated:Connect(function()
+	mainFrame.Visible = false
+	openBtn.Visible = true
+end)
+openBtn.Activated:Connect(function()
+	mainFrame.Visible = true
+	openBtn.Visible = false
+end)
+
+--==================================================
+-- SINGLE TARGET DRAWING ELEMENTS
+--==================================================
+
+local tracer = Drawing.new("Line")
+tracer.Color = CONFIG.ESP_COLOR
+tracer.Thickness = CONFIG.LINE_THICKNESS
+tracer.Transparency = 1
+tracer.Visible = false
+
+local box = Drawing.new("Square")
+box.Color = CONFIG.ESP_COLOR
+box.Thickness = 1.5
+box.Filled = false
+box.Transparency = 1
+box.Visible = false
+
+local function hideVisuals()
+	tracer.Visible = false
+	box.Visible = false
+end
+
+--==================================================
+-- RENDER LOOP (NEAREST PLAYER ONLY)
+--==================================================
+
+RunService:BindToRenderStep("SpectatorSystem", Enum.RenderPriority.Camera.Value + 1, function()
+	local camera = Workspace.CurrentCamera
+	if not camera then 
+		hideVisuals()
+		return 
+	end
+
+	local showEsp = getEspState()
+	local aimOn = getAimState()
+
+	if not showEsp and not aimOn then
+		hideVisuals()
+		return
+	end
+
+	local myChar = localPlayer.Character
+	local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart") :: BasePart?
+
+	if not myRoot then
+		hideVisuals()
+		return
+	end
+
+	local viewport = camera.ViewportSize
+	if viewport.X <= 0 or viewport.Y <= 0 then 
+		hideVisuals()
+		return 
+	end
+	local screenCenter = Vector2.new(viewport.X * 0.5, viewport.Y * 0.5)
+
+	-- ПОИСК ТОЛЬКО САМОГО БЛИЗКОГО ИГРОКА
+	local nearestPlayer: Player? = nil
+	local nearestChar: Model? = nil
+	local nearestHeadPos: Vector3? = nil
+	local minDistance = CONFIG.MAX_DISTANCE
+
+	for _, player in Players:GetPlayers() do
+		if player == localPlayer then continue end
+
+		local char = player.Character
+		if not char then continue end
+
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		local root = char:FindFirstChild("HumanoidRootPart") :: BasePart?
+
+		if not hum or hum.Health <= 0 or not root then continue end
+
+		local dist = (root.Position - myRoot.Position).Magnitude
+		if dist < minDistance then
+			minDistance = dist
+			nearestPlayer = player
+			nearestChar = char
+			local head = char:FindFirstChild("Head") :: BasePart?
+			nearestHeadPos = head and head.Position or (root.Position + Vector3.new(0, 1.5, 0))
+		end
+	end
+
+	-- РИСОВАНИЕ ДЛЯ БЛИЖАЙШЕГО ИГРОКА
+	if nearestChar and showEsp then
+		local root = nearestChar:FindFirstChild("HumanoidRootPart") :: BasePart
+		local rootPos = root.Position
+		local headPos = nearestHeadPos or (rootPos + Vector3.new(0, 1.5, 0))
+
+		local topWorld = headPos + Vector3.new(0, 1.2, 0)
+		local bottomWorld = rootPos - Vector3.new(0, 3.2, 0)
+
+		-- Использован WorldToScreenPoint для идеального совпадения с мышью/экраном
+		local topScreen, topOnScreen = camera:WorldToScreenPoint(topWorld)
+		local bottomScreen, bottomOnScreen = camera:WorldToScreenPoint(bottomWorld)
+
+		if topOnScreen and bottomOnScreen and topScreen.Z > 0 then
+			local height = math.abs(topScreen.Y - bottomScreen.Y)
+			local width = height * 0.65
+
+			local boxPos = Vector2.new(topScreen.X - width / 2, topScreen.Y)
+			box.Size = Vector2.new(width, height)
+			box.Position = boxPos
+			box.Visible = true
+
+			-- Трейсер ведется ровно из центра экрана к центру ESP-квадрата
+			local espCenter = Vector2.new(topScreen.X, topScreen.Y + (height / 2))
+			tracer.From = screenCenter
+			tracer.To = espCenter
+			tracer.Visible = true
+		else
+			hideVisuals()
+		end
+	else
+		hideVisuals()
+	end
+
+	-- НАВОДКА КАМЕРЫ (ТОЛЬКО НА БЛИЖАЙШЕГО)
+	if aimOn and nearestHeadPos then
+		camera.CFrame = CFrame.lookAt(camera.CFrame.Position, nearestHeadPos)
+	end
+end)
